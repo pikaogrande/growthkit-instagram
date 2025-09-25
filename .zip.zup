@@ -1,0 +1,158 @@
+// simples utilitário client-side — sem servidores
+const tagInput = document.getElementById('tagInput');
+const genTagsBtn = document.getElementById('genTags');
+const hashtagOutput = document.getElementById('hashtagOutput');
+const copyTagsBtn = document.getElementById('copyTags');
+const intent = document.getElementById('intent');
+
+const genCaptionBtn = document.getElementById('genCaption');
+const captionOutput = document.getElementById('captionOutput');
+const toneSelect = document.getElementById('tone');
+const copyCaptionBtn = document.getElementById('copyCaption');
+
+const timesList = document.getElementById('timesList');
+const calendar = document.getElementById('calendar');
+
+const emailInput = document.getElementById('email');
+const subscribeBtn = document.getElementById('subscribe');
+const subMsg = document.getElementById('subMsg');
+
+// Hashtag base (exemplo). Em app real você integraria com banco de dados ou API.
+const hashtagDb = {
+  fotografia: ['photography','photooftheday','instaphoto','ig_photo','capture','photoart','shooting'],
+  moda: ['fashion','style','ootd','fashionblogger','streetstyle','menswear','womenfashion'],
+  receita: ['food','foodporn','receitas','instafood','culinaria','foodstagram','delicious'],
+  viagem: ['travel','travelgram','wanderlust','instatravel','vacation','travelphotography','tour'],
+  fitness: ['fitness','workout','fitlife','gym','health','fitspo','training'],
+};
+
+// Gerador de hashtags simples
+function generateHashtags(topic, mode){
+  topic = topic.trim().toLowerCase();
+  let pool = [];
+  if(hashtagDb[topic]) pool = hashtagDb[topic].slice();
+  else {
+    // fallback: split topic words and make generic tags
+    pool = topic.split(/\s+/).map(w => w.replace(/[^a-zA-Z0-9]/g,'')).filter(Boolean);
+    pool = pool.concat(['instagood','photo','picoftheday','bestoftheday']);
+  }
+
+  // Modos
+  if(mode === 'reach'){
+    // repetir mais tags curtas + populares
+    pool = pool.concat(['instagood','picoftheday','photooftheday','follow4follow']);
+  } else if(mode === 'niche'){
+    pool = pool.map(t => t + 'lovers').concat(['smallbiz','supportlocal']);
+  } else {
+    // mix: shuffle, take variety
+  }
+
+  // shuffle
+  for(let i = pool.length -1; i>0; i--){
+    const j = Math.floor(Math.random() * (i+1));
+    [pool[i], pool[j]] = [pool[j], pool[i]];
+  }
+  // return up to 30 tags (IG limit) but recommend 8-15
+  return pool.slice(0, (Math.random() > 0.6 ? 12 : 8)).map(t => '#'+t);
+}
+
+genTagsBtn.addEventListener('click', () => {
+  const topic = tagInput.value || 'fotografia';
+  const mode = intent.value;
+  const tags = generateHashtags(topic, mode);
+  hashtagOutput.textContent = tags.join(' ');
+});
+
+copyTagsBtn.addEventListener('click', () => {
+  const text = hashtagOutput.textContent;
+  if(!text) return;
+  navigator.clipboard.writeText(text).then(()=> {
+    copyTagsBtn.textContent = 'Copiado!';
+    setTimeout(()=> copyTagsBtn.textContent = 'Copiar hashtags',1200);
+  });
+});
+
+// Legend generator (simples templates)
+const captions = {
+  friendly: [
+    "A vibe do dia ✨ Conta pra mim: qual é a sua parte favorita?",
+    "Hoje rolou isso! Se curtir, salva pra referência 😉",
+    "Gratidão por cada um aqui — vamos juntos nessa jornada!"
+  ],
+  professional: [
+    "Novo post: insights e detalhes. Leia, salve e compartilhe com quem precisa.",
+    "Apresentando hoje: [tópico] — resultado de muita pesquisa e prática.",
+    "Conteúdo objetivo e prático. Comente suas dúvidas abaixo."
+  ],
+  funny: [
+    "Se essa foto pudesse falar, diria: 'Comida primeiro, responsabilidades depois.' 😂",
+    "Legenda de última hora — improvisei e ficou ótimo!",
+    "Apenas tentando ser influencer... sem sucesso, mas com estilo."
+  ]
+};
+
+genCaptionBtn.addEventListener('click', () => {
+  const tone = toneSelect.value;
+  const pool = captions[tone] || captions.friendly;
+  const text = pool[Math.floor(Math.random() * pool.length)];
+  captionOutput.textContent = text;
+});
+copyCaptionBtn.addEventListener('click', () => {
+  const text = captionOutput.textContent;
+  if(!text) return;
+  navigator.clipboard.writeText(text).then(()=> {
+    copyCaptionBtn.textContent = 'Copiado!';
+    setTimeout(()=> copyCaptionBtn.textContent = 'Copiar legenda',1200);
+  });
+});
+
+// Horários sugeridos (dados genéricos)
+const suggestedTimes = [
+  'Segunda — 11:00, 19:00',
+  'Terça — 10:30, 18:30',
+  'Quarta — 12:00, 20:00',
+  'Quinta — 11:00, 19:30',
+  'Sexta — 09:00, 17:00',
+  'Sábado — 10:00, 14:00',
+  'Domingo — 16:00'
+];
+suggestedTimes.forEach(t => {
+  const li = document.createElement('li');
+  li.textContent = t;
+  timesList.appendChild(li);
+});
+
+// Calendário (próximos 28 dias)
+function createCalendar(){
+  const days = 28;
+  for(let i=0;i<days;i++){
+    const d = new Date();
+    d.setDate(d.getDate() + i);
+    const el = document.createElement('div');
+    el.className = 'day';
+    el.dataset.date = d.toISOString();
+    el.innerHTML = `<strong>${d.toLocaleDateString()}</strong><div class="note" style="margin-top:6px;color:var(--muted);font-size:13px;"></div>`;
+    el.addEventListener('click', () => {
+      const note = prompt('Nota para esse dia (ex: Foto do produto, Reels sobre X):', el.querySelector('.note').textContent.trim());
+      if(note === null) return;
+      el.querySelector('.note').textContent = note;
+    });
+    calendar.appendChild(el);
+  }
+}
+createCalendar();
+
+// Newsletter (simples, salva localStorage)
+subscribeBtn.addEventListener('click', () => {
+  const email = emailInput.value.trim();
+  if(!email || !email.includes('@')) {
+    subMsg.textContent = 'Digite um e-mail válido.';
+    return;
+  }
+  let list = JSON.parse(localStorage.getItem('subscribers') || '[]');
+  if(!list.includes(email)) list.push(email);
+  localStorage.setItem('subscribers', JSON.stringify(list));
+  subMsg.textContent = 'Inscrito! Você receberá dicas (simulação local).';
+  emailInput.value = '';
+  setTimeout(()=> subMsg.textContent = '',3000);
+});
